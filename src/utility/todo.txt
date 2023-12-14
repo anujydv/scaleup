@@ -1,0 +1,19 @@
+- mocking server postman
+- code
+- refactor
+- docker
+- linter
+- pre-commit hook
+- .gitignore
+- .dockerignore
+- unit test, https://coveralls.io/
+- github action, master, should run tests.
+
+
+readme
+1. how to run it locally.
+2. logo, test report, 
+
+
+heroku, mocking server connect.
+ 

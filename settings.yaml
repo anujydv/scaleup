@@ -1,0 +1,13 @@
+ENV: DEVELOPMENT
+VERSION: 0.0.1
+DEFAULT:
+  ALLOWED_HOSTS:
+    - "*"
+  HOST: "0.0.0.0"
+  PORT: 9025
+
+DEVELOPMENT:
+  LOGGING:
+    LOGGING_NAME: Scaleup
+    LOGGING_LEVEL: INFO
+    LOGGING_FORMAT: "<level>{level: <8}</level> <green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> request id: {extra[request_id]} - <cyan>{name}</cyan>:<cyan>{function}</cyan> - <level>{message}</level>"
