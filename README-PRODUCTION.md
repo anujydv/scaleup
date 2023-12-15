@@ -11,3 +11,4 @@ The current solution uses APScheduler, and the second section will propose an al
 1. Utilization of Celery: Implementing Celery as an alternative to APScheduler.
 2. Multiple Workers for Scalability: Deploying multiple workers within Celery to manage and execute scaling jobs effectively.
 3. Enhanced Performance: This approach potentially offers improved performance and scalability compared to the APScheduler-based solution.
+4. Add unit test cases for better ci/cd efficiency and one level of sanity check
