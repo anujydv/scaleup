@@ -1,12 +1,17 @@
+"""
+This file contains the SchedulerService class for performing scheduler operations.
+"""
 # SYSTEM IMPORT CLASS
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from fastapi import status
-from apscheduler.schedulers.background import BackgroundScheduler
-import requests
-# USER IMPORT CLASS
+import time
 
-from src.utility.logger_config import ScaleupError
-from src.utility.logger_config import Logger
+import requests
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.schedulers.background import BackgroundScheduler
+from fastapi import status
+
+# USER IMPORT CLASS
+from src.utility.logger_config import Logger, ScaleupError
+
 logger = Logger().get_logger()
 
 
@@ -30,21 +35,19 @@ class SchedulerService:
                               seconds=payload.interval, args=[payload.service_url])
             return {"message": "Job added successfully"}
         except Exception as exc:
-            print(exc)
             logger.error(
-                "Exception while scheduling 'auto_scaler' with interval: %s" %
-                payload.interval, extra={"error": f"{str(exc)}", "status_code": 500})
+                f"Exception while scheduling 'auto_scaler' with interval: {
+                    payload.interval}",
+                extra={"error": f"{str(exc)}", "status_code": 500})
             raise ScaleupError(status_code=500,
                                error="Error with scheduling auto_scaler") from exc
 
     def scheduler_operation(self, service_url):
         """Function to perform scheduled operation"""
         try:
-            response = requests.get(f"{service_url}/app/status")
-            print(response)
+            response = requests.get(f"{service_url}/app/status", timeout=5)
             if response.status_code == 200:
                 data = response.json()
-                print(data)
                 current_cpu = data['cpu']['highPriority']
                 current_replicas = data['replicas']
                 desired_replicas = int(
@@ -52,8 +55,20 @@ class SchedulerService:
                 desired_replicas = max(1, desired_replicas)
                 print(f"replica: {desired_replicas} {current_replicas}")
                 if desired_replicas != current_replicas:
-                    requests.put(f"{service_url}/app/replicas",
-                                 json={"replicas": desired_replicas})
+                    for _ in range(3):
+                        try:
+                            response = requests.post(f"{service_url}/app/replicas",
+                                                     json={
+                                "replicas": desired_replicas},
+                                timeout=5)
+                            response.raise_for_status()
+                            break
+                        except requests.exceptions.HTTPError as http_err:
+                            logger.error(f"HTTP error occurred: {http_err}")
+                            time.sleep(2)
+                        except Exception as err:
+                            logger.error(f"An error occurred: {err}")
+                            time.sleep(2)
             else:
                 logger.error("Error while getting the service status", extra={
                              "status_code": 500})
@@ -64,10 +79,10 @@ class SchedulerService:
             }
             status_code = status.HTTP_200_OK
         except Exception as exc:
-            print(exc)
             logger.error(
-                "Exception while performing 'scheduler_operation': %s" %
-                service_url, extra={"error": f"{exc}", "status_code": 500})
+                f"Exception while performing 'scheduler_operation': {
+                    service_url}",
+                extra={"error": f"{exc}", "status_code": 500})
             raise ScaleupError(status_code=500,
                                error="Error while performing scheduler operation") from exc
         return data, status_code
