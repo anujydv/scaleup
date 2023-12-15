@@ -5,9 +5,9 @@ This file contains the SchedulerService class for performing scheduler operation
 import time
 
 import requests
+import urllib3
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import status
 
 # USER IMPORT CLASS
 from src.utility.logger_config import Logger, ScaleupError
@@ -45,7 +45,14 @@ class SchedulerService:
     def scheduler_operation(self, service_url):
         """Function to perform scheduled operation"""
         try:
-            response = requests.get(f"{service_url}/app/status", timeout=5)
+            response: requests.Response()
+            try:
+                response = requests.get(f"{service_url}/app/status", timeout=5)
+            except (requests.exceptions.RequestException, requests.exceptions.ConnectionError,
+                    urllib3.exceptions.NewConnectionError, urllib3.exceptions.MaxRetryError) as exc:
+                logger.error(f"Request exception occurred: {
+                             exc}", extra={"status_code": 500})
+            data: dict = {}
             if response.status_code == 200:
                 data = response.json()
                 current_cpu = data['cpu']['highPriority']
@@ -72,17 +79,8 @@ class SchedulerService:
             else:
                 logger.error("Error while getting the service status", extra={
                              "status_code": 500})
-                raise ScaleupError(
-                    status_code=500, error="Error while getting the service status")
-            data = {
-                "cpu_usage": data["cpu"]['highPriority'],
-            }
-            status_code = status.HTTP_200_OK
         except Exception as exc:
             logger.error(
                 f"Exception while performing 'scheduler_operation': {
                     service_url}",
                 extra={"error": f"{exc}", "status_code": 500})
-            raise ScaleupError(status_code=500,
-                               error="Error while performing scheduler operation") from exc
-        return data, status_code
